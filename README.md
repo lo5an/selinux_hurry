@@ -133,8 +133,10 @@ and we should be good to go!
 
 ### SELinux Booleans
 
-When you run audit2allow, sometimes you'll see a `Was caused by:` message that refers to a boolean, like `The boolean 
-nis_enabled was set incorrectly.` 
+When you run audit2allow, sometimes you'll see a `Was caused by:` message that refers to a boolean. For example:
+```
+The boolean nis_enabled was set incorrectly.
+``` 
 
 This generally means that you tried to do something that would be allowed by an optional part of the `targeted` policy, 
 but you haven't enabled that option. These options are called SELinux Booleans, and we can use `semanage` to work with them as well.
@@ -149,7 +151,7 @@ To enable a boolean, do:
 ```
 sudo semanage boolean --modify --on httpd_can_network_connect
 ```
-To disabable:
+To disable:
 ```
 sudo semanage boolean --modify --off httpd_can_network_connect_db
 ```
