@@ -3,18 +3,18 @@
 # (Incomplete Draft)
 
 
-This document is for web developers who need to quickly develop a working relationship with SELinux on RHEL or CentOS without investing the time to dive very far in to the details. If you have more than a few minutes to spare, I recommend that you take a look at the [resources](#resources) section for deeper, better, more expert guidance.
+This document presents the bare minimum of info for web developers who need to quickly develop a working relationship with SELinux on RHEL or CentOS without investing the time to dive very far in to the details. If you have more than a few minutes to spare, I recommend that you take a look at the [resources](#resources) section for deeper, better, more expert guidance.
 
 ## Learning Objectives
 
-* Scratch the surface of the core SELinux concepts:  Mndatory Access Control, contexts/labels, RHEL's `targeted` policy
+* Scratch the surface of the core SELinux concepts:  Mandatory Access Control, contexts/labels, RHEL's `targeted` policy
 * Learn the two most common cause of SELinux errors and their symptoms
 * Learn the minimal toolbox for identifying and fixing those common errors
 
 ## What is SELinux?
 
-SELinux is a tool that helps ensure that a Linux system only runs the software that its supposed to and that software only
-operates on an approved set of resource. It does this by providing Linux with kernel-level Mandatory Access Control that is
+SELinux is a tool that helps ensure that a Linux system only runs the programs that it is supposed to, and that that software
+onlyoperates on an approved set of resource. It does this by providing Linux with kernel-level Mandatory Access Control that is
 applied in addition to (and after) the normal Linux permission system.
 
 The basic components are of SELinux are:
@@ -22,19 +22,22 @@ The basic components are of SELinux are:
 * labels -- identifiers for system features (files, ports, processes, etc), also called contexts.
 * a policy -- a set of rules for allowing system features to operate on other system features.  (May X do Y to Z?)
 
-Labels are of the format `user:role:type:level`, but, for our purposes, we generally only have to care about the type part of
+Labels are of the format `user:role:type:level`, but, for our purposes, we only have to care about the type part of
 the label, which will usually look  something like `foo_t`.
 
 ## RHEL's `targeted` Policy
 
-We're using RHEL/CentOS, so we'll mainly be working RedHat's `targeted` policy, which focuses on the most important, commonest,
-and most exposed services that we will typically run.
+We're considering RHEL-based systems, so we'll mainly be working Red Hat's `targeted` policy, which focuses it's policy 
+on the most important, commonest, and most exposed services that we our systems typically run. As web developers, our code
+runs inside established processes like `tomcat` or `php-fpm` or `apache` that are definitely on this list. 
 
-As web developers, our code mostly runs inside established processes like `tomcat` or `apache`, so just about everything we
-need already exists in the `targeted` policy. 
+Everything else, including most of the stuff run by logged in users, is considered "unconfined" and given the label
+`unconfined_t`, which is designed to let most things just run while providing some minimally impactful protection. 
 
-Everything else, including most things run by logged in users, is considered "unconfined" and given the label `unconfined_t`,
-which is designed to provide minimally impactful protection from some common attacks. 
+### Note For Tomcat Users
+
+There was a [big change](https://access.redhat.com/solutions/3219121) to how `tomcat` is handled by the targeted policy as of RHEL 7.4. Prior to this change, `tomcat` was running unconfined. Welcome to the party!
+
 
 ## Enforcing and Permissive Mode
 
