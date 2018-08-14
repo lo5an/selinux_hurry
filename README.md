@@ -60,7 +60,7 @@ Many common commands can be used to view SELinux labels. Try the following:
 
 Lots of commands have a `-Z`. 
 
-## SELinux Broke My App 
+## SELinux Broke My App! 
 
 You're likely here because SELinux isn't letting your web app run. Typically, this takes the form of a mysterious 
 `File Not Found` or `Permission Denied` error. 
@@ -119,16 +119,14 @@ drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 ROOT
 drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 sample
 ```
 With that information, we should be able to fix the problem with the following steps. First we update the SELinux policy:
-
 ```
 semanage fcontext -a -t tomcat_var_lib_t "/srv(/.*)?"
 ```
 and then we apply that policy to the existing files in `/srv`:
-
 ```
 restorecon -vR /srv/`   
 ```
-
+and we should be good to go!
 
 ### SELinux Booleans
 
