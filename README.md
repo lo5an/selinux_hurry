@@ -1,13 +1,15 @@
 # SELinux for Web Nerds in a Hurry
 
-This document is for web developers who need to quickly develop a working relationship with SELinux on RHEL or CentOS without being spending the time to dive very far in to the details. If you have more than a few minutes to spare, I recommend that you take a look at the [resources](#resources) section for deeper, better, more expert guidance.
+# (Incomplete Draft)
+
+
+This document is for web developers who need to quickly develop a working relationship with SELinux on RHEL or CentOS without investing the time to dive very far in to the details. If you have more than a few minutes to spare, I recommend that you take a look at the [resources](#resources) section for deeper, better, more expert guidance.
 
 ## Learning Objectives
 
-* Scratch the surface of the core SELinux concepts:  MAC, contexts/labels, RHEL's targeted policy
-* Learn the most common cause of SELinux errors and their symptoms
-* Learn a few some tools for identifying and fixing those common errors
-* Learn about Ansible features related to SELinux
+* Scratch the surface of the core SELinux concepts:  Mndatory Access Control, contexts/labels, RHEL's `targeted` policy
+* Learn the two most common cause of SELinux errors and their symptoms
+* Learn the minimal toolbox for identifying and fixing those common errors
 
 ## What is SELinux?
 
@@ -60,59 +62,94 @@ Lots of commands have a `-Z`.
 
 ## SELinux Broke My App 
 
-You're likely here because SELinux is breaking your web app. Typically, this takes the form of a mysterious 
+You're likely here because SELinux isn't letting your web app run. Typically, this takes the form of a mysterious 
 `File Not Found` or `Permission Denied` error. 
 
-The good news is that there's a strong chance that one of two things is wrong: 
+The good news is that there's a very strong chance that one of two things is wrong:
 * a file or folder has the wrong label
 * you need to enable an optional part of the policy with a SELinux boolean
 
-
 ### Find the Problem
 
-Identifying SELinux Problems - audit2why
+On a RHEL-based system, you can find the logs from SELinux in `/var/log/audit/audit.log` (you'll probably need to sudo to view them.) That file will likely have SELinux lines that look like: 
+```
+type=AVC msg=audit(1534218422.277:277403): avc:  denied  { getattr } for  pid=11736 comm="java" path="/srv/oulib/dspace/config/local.cfg" dev="xvda1" ino=377703291 scontext=system_u:system_r:tomcat_t:s0 tcontext=unconfined_u:object_r:var_t:s0 tclass=file
+```
 
-We can mostly find what we need to fix in
+Let's break that down:
 
-/var/log/audit/audit.log using audit2why
+* `type=AVC` identifies this as an SELinux error
+* `msg=audit(1534218422.277:277403):` is mainly important for the timestamp there in the middle
+* `avc:  denied  { getattr }` indicates what action was rejected 
+* `for  pid=11736 comm="java"` tells us what process tried to act
+* `path="/srv/oulib/dspace/config/local.cfg" dev="xvda1" ino=377703291` tells us what resource the proces was acting on.
+* `scontext=system_u:system_r:tomcat_t:s0` gives us the label of the process  
+* `tcontext=unconfined_u:object_r:var_t:s0 tclass=file` gives us the label of the resource that was accessed
 
+So the TLDR of that is that  a `java` process running  with type `tomcat_t` was not able to access a file whose 
+label gives it the type `var_t`.
+
+You can use the tool `audit2why` to get a little bit more information. If we run `cat /var/log/audit/audit.log | auditw2hy` 
+we'll see expanded entries that look like this:
+
+```
+type=AVC msg=audit(1534218422.277:277403): avc:  denied  { getattr } for  pid=11736 comm="java" path="/srv/oulib/dspace/config/local.cfg" dev="xvda1" ino=377703291 scontext=system_u:system_r:tomcat_t:s0 tcontext=unconfined_u:object_r:var_t:s0 tclass=file
+
+        Was caused by:
+                Missing type enforcement (TE) allow rule.
+
+                You can use audit2allow to generate a loadable module to allow this access.
+```
+
+Of course! We're running our app in [`/srv`](https://www.tldp.org/LDP/Linux-Filesystem-Hierarchy/html/srv.html) but we haven't
+adjusted our policy to let SELinux know that  it's OK for `tomcat` to use files in that location. The good news is that the targeted policy already includes the rules we need, we just have to update the labels on the contentsw of `/srv`. 
 
 ### Setting the SELinux Label for Files and Folders 
 
-Managing SELinux Context for Application Files
+The easiest way to fix that is to copy the configuration from a location like `/var/lib/tomcat/webapps` that comes configured
+as part of the tomcat install. We can use `ls -Z` to find the context that we need:
+
+`$ ls -Z /var/lib/tomcat/webapps/
+drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 examples
+drwxr-xr-x. root   tomcat system_u:object_r:tomcat_var_lib_t:s0 host-manager
+drwxr-xr-x. root   tomcat system_u:object_r:tomcat_var_lib_t:s0 manager
+drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 ROOT
+drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 sample
+`
+With that information, we should be able to fix the problem with the following steps. First we update the SELinux policy:
+
+```
+semanage fcontext -a -t tomcat_var_lib_t "/srv(/.*)?"
+```
+and then we apply that policy to the existing files in `/srv`:
+
+```
+restorecon -vR /srv/`   
+```
 
 
-`semanage fcontext -a -t tomcat_var_lib_t "/srv(/.*)?"`
+### SELinux Booleans
 
-`semanage fcontext -a -e /var/lib/tomcat/`
+When you run audit2allow, sometimes you'll see a `Was caused by:` message that refers to a boolean, like `The boolean 
+nis_enabled was set incorrectly.` 
 
-`restorecon -vR /srv/`   
+This generally means that you tried to do something that would be allowed by an optional part of the `targeted` policy, 
+but you haven't enabled that option. These options are called SELinux Booleans, and we can use `semanage` to work with them as well.
 
-### Setting SELinux Booleans
-
-Used for things that services could, but don't always, need.
-
-
+You can list list all SELinux booleans in the installed policy:
 ```sudo semanage boolean --list```
+
+or list just the ones that have been  modified:
 ```sudo semanage boolean --list -C```
 
-
-```sudo semanage boolean --modify --on httpd_can_network_connect```
-```sudo semanage boolean --modify --on httpd_can_network_connect_db```
-
-
-
-## SELinux and Ansible
-
-Ansible has some built in commands, and you can find examples in several of our roles.
-
-https://docs.ansible.com/ansible/2.6/modules/seboolean_module.html
-https://docs.ansible.com/ansible/2.6/modules/sefcontext_module.html
-
-"The sefcontext module does not modify existing files to the new SELinux context(s), so it is advisable to first create the SELinux file contexts before creating files, or run restorecon manually for the existing files that require the new SELinux file contexts"
-
-
-
+To enable a boolean, do:
+```
+sudo semanage boolean --modify --on httpd_can_network_connect
+```
+To disabable:
+```
+sudo semanage boolean --modify --off httpd_can_network_connect_db
+```
 
 ## Resources for Further Study
 
@@ -124,7 +161,3 @@ The following are great:
 * [RedHat SELinux Admin Guide](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/selinux_users_and_administrators_guide/index)
 * [Centos SELinux HowTo](https://wiki.centos.org/HowTos/SELinux)
 * [Fedora SELinux Pages](https://fedoraproject.org/wiki/SELinux)
-
-
-
-
