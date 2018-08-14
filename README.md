@@ -1,7 +1,4 @@
-# SELinux for Web Nerds in a Hurry
-
-# (Incomplete Draft)
-
+# The Minimum SELinux for Web Nerds in a Hurry
 
 This document presents the bare minimum of info for web developers who need to quickly develop a working relationship with SELinux on RHEL or CentOS without investing the time to dive very far in to the details. If you have more than a few minutes to spare, I recommend that you take a look at the [resources](#resources) section for deeper, better, more expert guidance.
 
