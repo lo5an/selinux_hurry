@@ -66,6 +66,7 @@ You're likely here because SELinux isn't letting your web app run. Typically, th
 `File Not Found` or `Permission Denied` error. 
 
 The good news is that there's a very strong chance that one of two things is wrong:
+
 * a file or folder has the wrong label
 * you need to enable an optional part of the policy with a SELinux boolean
 
@@ -109,13 +110,14 @@ adjusted our policy to let SELinux know that  it's OK for `tomcat` to use files 
 The easiest way to fix that is to copy the configuration from a location like `/var/lib/tomcat/webapps` that comes configured
 as part of the tomcat install. We can use `ls -Z` to find the context that we need:
 
-`$ ls -Z /var/lib/tomcat/webapps/
+```
+$ ls -Z /var/lib/tomcat/webapps/
 drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 examples
 drwxr-xr-x. root   tomcat system_u:object_r:tomcat_var_lib_t:s0 host-manager
 drwxr-xr-x. root   tomcat system_u:object_r:tomcat_var_lib_t:s0 manager
 drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 ROOT
 drwxr-xr-x. tomcat tomcat system_u:object_r:tomcat_var_lib_t:s0 sample
-`
+```
 With that information, we should be able to fix the problem with the following steps. First we update the SELinux policy:
 
 ```
