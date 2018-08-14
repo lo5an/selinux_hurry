@@ -4,7 +4,10 @@ This document presents the bare minimum of info for web developers who need to q
 
 ## Learning Objectives
 
-* Scratch the surface of the core SELinux concepts:  Mandatory Access Control, contexts/labels, RHEL's `targeted` policy
+* Scratch the surface of the core SELinux concepts:  
+  * Mandatory Access Control
+  * contexts/labels
+  * RHEL's `targeted` policy
 * Learn the two most common cause of SELinux errors and their symptoms
 * Learn the minimal toolbox for identifying and fixing those common errors
 
@@ -105,7 +108,7 @@ type=AVC msg=audit(1534218422.277:277403): avc:  denied  { getattr } for  pid=11
 Of course! We're running our app in [`/srv`](https://www.tldp.org/LDP/Linux-Filesystem-Hierarchy/html/srv.html) but we haven't
 adjusted our policy to let SELinux know that  it's OK for `tomcat` to use files in that location. The good news is that the targeted policy already includes the rules we need, we just have to update the labels on the contentsw of `/srv`. 
 
-### Setting the SELinux Label for Files and Folders 
+### Common Fix 1: Set the SELinux Label for Files and Folders 
 
 The easiest way to fix that is to copy the configuration from a location like `/var/lib/tomcat/webapps` that comes configured
 as part of the tomcat install. We can use `ls -Z` to find the context that we need:
@@ -128,7 +131,7 @@ restorecon -vR /srv/`
 ```
 and we should be good to go!
 
-### SELinux Booleans
+### Common Fix 2: Enable an SELinux Boolean
 
 When you run audit2allow, sometimes you'll see a `Was caused by:` message that refers to a boolean. For example:
 ```
