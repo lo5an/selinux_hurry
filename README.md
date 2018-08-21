@@ -69,6 +69,10 @@ $ getenforce
 Enforcing
 ```
 
+You can use `setenforce 0` to temporarily switch from `Enforcing` to `Permissive`
+while debugging and then use `setenforce 1` to switch back to `Enforcing` mode. This
+can be useful if you aren't sure whether you've got an SELinux issue, or some other problem. 
+
 ## Find the Label of Files and Processes 
 
 Many common commands can be used to view SELinux labels. Try the following:
@@ -190,12 +194,16 @@ or list just the ones that have been  modified:
 
 ```
 sudo semanage boolean --list -C```
+```
 
 To enable a boolean, do:
+
 ```
 sudo semanage boolean --modify --on httpd_can_network_connect
 ```
+
 To disable:
+
 ```
 sudo semanage boolean --modify --off httpd_can_network_connect_db
 ```
